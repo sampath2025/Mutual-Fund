@@ -27,6 +27,7 @@ from src.config import config
 from src.database import get_db, init_db, Session
 from src.services.fund_service import FundService
 from src.services.alert_service import AlertService
+from src.services.settings_service import SettingsService
 from src.api.health import router as health_router
 import pandas as pd
 
@@ -103,6 +104,18 @@ async def startup_event():
     logger.info(f"Agent check interval: {config.AGENT_CHECK_INTERVAL} seconds")
     # Database is initialized on import, but we can verify here
     init_db()
+    
+    # Load email settings
+    db = next(get_db())
+    try:
+        email_config = SettingsService.get_setting(db, "email_config")
+        if email_config:
+            notifier.update_config(email_config)
+            logger.info("Loaded email configuration from database")
+    except Exception as e:
+        logger.error(f"Error loading email settings: {str(e)}")
+    finally:
+        db.close()
 
 
 @app.on_event("shutdown")
@@ -397,6 +410,43 @@ async def test_nav_fetch(scheme_code: str):
             }
     except Exception as e:
         logger.error(f"Error testing NAV fetch: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class EmailConfig(BaseModel):
+    enabled: bool
+    sender_email: Optional[str]
+    receiver_email: Optional[str]
+    password: Optional[str]
+    smtp_server: Optional[str] = "smtp.gmail.com"
+    smtp_port: Optional[int] = 587
+
+
+@app.get("/api/settings/email")
+async def get_email_settings(db: Session = Depends(get_db)):
+    """Get email settings"""
+    config = SettingsService.get_setting(db, "email_config", {})
+    return config
+
+
+@app.post("/api/settings/email")
+async def update_email_settings(email_config: EmailConfig, db: Session = Depends(get_db)):
+    """Update email settings"""
+    try:
+        # Save to database
+        SettingsService.set_setting(
+            db, 
+            "email_config", 
+            email_config.dict(), 
+            "Email notification configuration"
+        )
+        
+        # Update notifier
+        notifier.update_config(email_config.dict())
+        
+        return {"message": "Email configuration updated successfully"}
+    except Exception as e:
+        logger.error(f"Error updating email settings: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

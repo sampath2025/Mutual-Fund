@@ -57,6 +57,17 @@ class AlertModel(Base):
     acknowledged = Column(Boolean, default=False)
 
 
+
+class SettingsModel(Base):
+    """Application settings model"""
+    __tablename__ = "settings"
+    
+    key = Column(String, primary_key=True, index=True)
+    value = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class NAVHistoryModel(Base):
     """NAV history database model"""
     __tablename__ = "nav_history"
