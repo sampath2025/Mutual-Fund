@@ -19,6 +19,12 @@ class Notifier:
         self.email_config = email_config or {}
         self.alert_service = alert_service
         self.notification_history: List[Alert] = []
+
+    def update_config(self, email_config: dict):
+        """Update email configuration"""
+        self.email_config = email_config
+        logger.info("Email configuration updated")
+
         
     async def send_notification(self, alert: Alert, db_session=None):
         """Send notification for an alert"""

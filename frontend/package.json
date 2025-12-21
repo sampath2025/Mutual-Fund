@@ -2,6 +2,7 @@
   "name": "mutual-fund-tracker-frontend",
   "version": "1.0.0",
   "description": "Modern UI for Mutual Fund NAV Tracking",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -23,4 +24,3 @@
     "postcss": "^8.4.32"
   }
 }
-
