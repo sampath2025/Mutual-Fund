@@ -8,7 +8,7 @@ export default function AlertsPanel({ alerts }) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
-  
+
   const [emailConfig, setEmailConfig] = useState({
     enabled: false,
     sender_email: '',
@@ -43,7 +43,7 @@ export default function AlertsPanel({ alerts }) {
     e.preventDefault()
     setSaving(true)
     setMessage(null)
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/settings/email`, {
         method: 'POST',
@@ -52,7 +52,7 @@ export default function AlertsPanel({ alerts }) {
         },
         body: JSON.stringify(emailConfig)
       })
-      
+
       if (response.ok) {
         setMessage({ type: 'success', text: 'Settings saved successfully' })
       } else {
@@ -60,6 +60,29 @@ export default function AlertsPanel({ alerts }) {
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error saving settings: ' + error.message })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/settings/email/test`, {
+        method: 'POST'
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: `Test report sent successfully! (${data.count} funds included)` })
+      } else {
+        setMessage({ type: 'error', text: data.detail || 'Failed to send test email' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error sending test email: ' + error.message })
     } finally {
       setSaving(false)
     }
@@ -115,7 +138,7 @@ export default function AlertsPanel({ alerts }) {
               <li>Enable 2-Step Verification in Google Account {'>'} Security to generate an App Password</li>
             </ul>
           </div>
-          
+
           {loading ? (
             <div className="flex justify-center p-8">
               <Loader2 className="animate-spin text-indigo-600" size={32} />
@@ -127,7 +150,7 @@ export default function AlertsPanel({ alerts }) {
                   type="checkbox"
                   id="enabled"
                   checked={emailConfig.enabled}
-                  onChange={e => setEmailConfig({...emailConfig, enabled: e.target.checked})}
+                  onChange={e => setEmailConfig({ ...emailConfig, enabled: e.target.checked })}
                   className="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500"
                 />
                 <label htmlFor="enabled" className="font-medium text-gray-700">Enable Email Notifications</label>
@@ -139,7 +162,7 @@ export default function AlertsPanel({ alerts }) {
                   <input
                     type="email"
                     value={emailConfig.sender_email || ''}
-                    onChange={e => setEmailConfig({...emailConfig, sender_email: e.target.value})}
+                    onChange={e => setEmailConfig({ ...emailConfig, sender_email: e.target.value })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="your-email@gmail.com"
                   />
@@ -149,7 +172,7 @@ export default function AlertsPanel({ alerts }) {
                   <input
                     type="password"
                     value={emailConfig.password || ''}
-                    onChange={e => setEmailConfig({...emailConfig, password: e.target.value})}
+                    onChange={e => setEmailConfig({ ...emailConfig, password: e.target.value })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="xxxx xxxx xxxx xxxx"
                   />
@@ -159,7 +182,7 @@ export default function AlertsPanel({ alerts }) {
                   <input
                     type="email"
                     value={emailConfig.receiver_email || ''}
-                    onChange={e => setEmailConfig({...emailConfig, receiver_email: e.target.value})}
+                    onChange={e => setEmailConfig({ ...emailConfig, receiver_email: e.target.value })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                     placeholder="recipient@example.com"
                   />
@@ -169,21 +192,20 @@ export default function AlertsPanel({ alerts }) {
                   <input
                     type="text"
                     value={emailConfig.smtp_server}
-                    onChange={e => setEmailConfig({...emailConfig, smtp_server: e.target.value})}
+                    onChange={e => setEmailConfig({ ...emailConfig, smtp_server: e.target.value })}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                   />
                 </div>
               </div>
 
               {message && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
+                <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  }`}>
                   {message.text}
                 </div>
               )}
 
-              <div className="pt-4">
+              <div className="pt-4 flex gap-4">
                 <button
                   type="submit"
                   disabled={saving}
@@ -191,6 +213,16 @@ export default function AlertsPanel({ alerts }) {
                 >
                   {saving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                   Save Settings
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSendTestEmail}
+                  disabled={!emailConfig.enabled || saving}
+                  className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:bg-gray-400"
+                >
+                  <Mail size={20} />
+                  Send Test Report
                 </button>
               </div>
             </form>
@@ -226,12 +258,11 @@ export default function AlertsPanel({ alerts }) {
                           {alert.fund?.scheme_code} • {alert.fund?.category}
                         </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        alert.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${alert.severity === 'critical' ? 'bg-red-100 text-red-700' :
                         alert.severity === 'high' ? 'bg-orange-100 text-orange-700' :
-                        alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
+                          alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-blue-100 text-blue-700'
+                        }`}>
                         {alert.severity.toUpperCase()}
                       </span>
                     </div>

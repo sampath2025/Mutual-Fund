@@ -449,6 +449,48 @@ async def update_email_settings(email_config: EmailConfig, db: Session = Depends
         logger.error(f"Error updating email settings: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/settings/email/test")
+async def send_test_email(db: Session = Depends(get_db)):
+    """Send a test email with current fund status"""
+    try:
+        # Check if email is enabled
+        email_config = SettingsService.get_setting(db, "email_config", {})
+        if not email_config.get("enabled"):
+            raise HTTPException(status_code=400, detail="Email notifications are disabled")
+            
+        # Get all active funds
+        funds = FundService.get_all_funds(db, active_only=True)
+        if not funds:
+            raise HTTPException(status_code=400, detail="No active funds to report")
+            
+        # Fetch current NAV for each fund
+        report_data = []
+        for fund in funds:
+            try:
+                nav = await data_collector.get_latest_nav(fund.scheme_code)
+                if nav:
+                    report_data.append({
+                        "scheme_name": fund.scheme_name,
+                        "scheme_code": fund.scheme_code,
+                        "nav": nav.nav,
+                        "date": nav.date.strftime('%Y-%m-%d')
+                    })
+            except Exception as e:
+                logger.error(f"Error fetching NAV for {fund.scheme_code}: {str(e)}")
+        
+        if not report_data:
+            raise HTTPException(status_code=400, detail="Could not fetch NAV data for any funds")
+            
+        # Send report
+        await notifier.send_report(report_data)
+        
+        return {"message": "Test email sent successfully", "count": len(report_data)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sending test email: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
